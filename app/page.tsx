@@ -1,6 +1,8 @@
 "use client";
 
+import { pricingData } from "../data/pricing";
 import { useState } from "react";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 const aiTools = [
   "ChatGPT",
@@ -13,11 +15,13 @@ const aiTools = [
 ];
 
 export default function Home() {
-  const [tool, setTool] = useState("");
-  const [plan, setPlan] = useState("");
-  const [spend, setSpend] = useState("");
-  const [teamSize, setTeamSize] = useState("");
-  const [useCase, setUseCase] = useState("Coding");
+  const [tool, setTool] = useLocalStorage("tool", "");
+  const [plan, setPlan] = useLocalStorage("plan", "");
+  const [spend, setSpend] = useLocalStorage("spend", "");
+  const [teamSize, setTeamSize] =
+    useLocalStorage("teamSize", "");
+  const [useCase, setUseCase] =
+    useLocalStorage("useCase", "Coding");
 
   const [result, setResult] = useState<{
     message: string;
@@ -28,25 +32,43 @@ export default function Home() {
   const generateAudit = () => {
     const spendAmount = Number(spend);
     const size = Number(teamSize);
+    const toolPricing =
+  pricingData[
+    tool as keyof typeof pricingData
+  ];
 
-    if (tool === "ChatGPT" && size <= 2 && spendAmount > 50) {
+const estimatedCost =
+  toolPricing?.[
+    plan as keyof typeof toolPricing
+  ] || 0;
+
+const expectedSpend = estimatedCost * size;
+
+    if (spendAmount > expectedSpend){
       setResult({
         message:
           "Your team may be overspending on ChatGPT Team plans. Smaller teams can often reduce costs using Plus subscriptions.",
-        monthlySavings: 120,
-        annualSavings: 1440,
+        monthlySavings: spendAmount - expectedSpend,
+annualSavings:
+  (spendAmount - expectedSpend) * 12,
       });
-    } else if (tool === "Claude" && spendAmount > 100) {
+    } else if (
+      tool === "Claude" &&
+      spendAmount > 100
+    ) {
       setResult({
         message:
           "Claude usage appears expensive relative to your team size. Reviewing API usage could reduce costs.",
         monthlySavings: 80,
         annualSavings: 960,
       });
-    } else if (tool === "Cursor" && spendAmount > 150) {
+    } else if (
+      tool === "Cursor" &&
+      spendAmount > 150
+    ) {
       setResult({
         message:
-          "Your Cursor spend suggests potential over-allocation of premium seats. Optimizing licenses could reduce costs.",
+          "Your Cursor spend suggests potential over-allocation of premium seats.",
         monthlySavings: 95,
         annualSavings: 1140,
       });
@@ -82,7 +104,9 @@ export default function Home() {
               value={tool}
               onChange={(e) => setTool(e.target.value)}
             >
-              <option value="">Select Tool</option>
+              <option value="">
+                Select Tool
+              </option>
 
               {aiTools.map((toolName) => (
                 <option key={toolName}>
@@ -102,7 +126,9 @@ export default function Home() {
               placeholder="Pro / Team / Enterprise"
               className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700"
               value={plan}
-              onChange={(e) => setPlan(e.target.value)}
+              onChange={(e) =>
+                setPlan(e.target.value)
+              }
             />
           </div>
 
@@ -116,7 +142,9 @@ export default function Home() {
               placeholder="200"
               className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700"
               value={spend}
-              onChange={(e) => setSpend(e.target.value)}
+              onChange={(e) =>
+                setSpend(e.target.value)
+              }
             />
           </div>
 
@@ -130,7 +158,9 @@ export default function Home() {
               placeholder="5"
               className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700"
               value={teamSize}
-              onChange={(e) => setTeamSize(e.target.value)}
+              onChange={(e) =>
+                setTeamSize(e.target.value)
+              }
             />
           </div>
 
@@ -142,7 +172,9 @@ export default function Home() {
             <select
               className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700"
               value={useCase}
-              onChange={(e) => setUseCase(e.target.value)}
+              onChange={(e) =>
+                setUseCase(e.target.value)
+              }
             >
               <option>Coding</option>
               <option>Writing</option>
