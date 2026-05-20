@@ -7,23 +7,36 @@ export default function Home() {
   const [plan, setPlan] = useState("");
   const [spend, setSpend] = useState("");
   const [teamSize, setTeamSize] = useState("");
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState<{
+  message: string;
+  monthlySavings: number;
+  annualSavings: number;
+} | null>(null);
   const generateAudit = () => {
   const spendAmount = Number(spend);
   const size = Number(teamSize);
 
   if (tool === "ChatGPT" && size <= 2 && spendAmount > 50) {
-    setResult(
-      "You may be overspending on ChatGPT. Smaller teams often save by switching from Team plans to Plus plans."
-    );
+    setResult({
+      message:
+        "Your team may be overspending on ChatGPT Team plans. Smaller teams can often reduce costs using Plus subscriptions.",
+      monthlySavings: 120,
+      annualSavings: 1440,
+    });
   } else if (tool === "Claude" && spendAmount > 100) {
-    setResult(
-      "Claude usage appears high. Consider optimizing API usage or reviewing plan requirements."
-    );
+    setResult({
+      message:
+        "Claude usage appears expensive relative to your team size. Reviewing API usage could reduce costs.",
+      monthlySavings: 80,
+      annualSavings: 960,
+    });
   } else {
-    setResult(
-      "Your current AI spending appears reasonable based on the provided inputs."
-    );
+    setResult({
+      message:
+        "Your AI spending appears optimized for your current usage.",
+      monthlySavings: 0,
+      annualSavings: 0,
+    });
   }
 };
 
@@ -107,12 +120,42 @@ export default function Home() {
   Generate Audit
 </button>
 {result && (
-  <div className="bg-green-900 border border-green-700 p-4 rounded-lg mt-6">
-    <h2 className="text-xl font-semibold mb-2">
-      Audit Result
+  <div className="bg-zinc-800 border border-zinc-700 p-6 rounded-xl mt-6">
+    <h2 className="text-2xl font-bold mb-4">
+      Audit Results
     </h2>
 
-    <p>{result}</p>
+    <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="bg-black p-4 rounded-lg">
+        <p className="text-gray-400 text-sm">
+          Monthly Savings
+        </p>
+
+        <h3 className="text-3xl font-bold text-green-400">
+          ${result.monthlySavings}
+        </h3>
+      </div>
+
+      <div className="bg-black p-4 rounded-lg">
+        <p className="text-gray-400 text-sm">
+          Annual Savings
+        </p>
+
+        <h3 className="text-3xl font-bold text-green-400">
+          ${result.annualSavings}
+        </h3>
+      </div>
+    </div>
+
+    <div className="bg-zinc-900 p-4 rounded-lg">
+      <h3 className="font-semibold mb-2">
+        Recommendation
+      </h3>
+
+      <p className="text-gray-300">
+        {result.message}
+      </p>
+    </div>
   </div>
 )}
         </div>
