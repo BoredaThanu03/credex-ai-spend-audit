@@ -1,7 +1,8 @@
 "use client";
 
-import { pricingData } from "../data/pricing";
 import { useState } from "react";
+import { supabase } from "../lib/supabase";
+import { pricingData } from "../data/pricing";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
 const aiTools = [
@@ -14,12 +15,39 @@ const aiTools = [
   "Anthropic API",
 ];
 
+const toolPlans: Record<string, string[]> = {
+  ChatGPT: ["Plus", "Team", "Enterprise"],
+
+  Claude: ["Pro", "Team", "Enterprise"],
+
+  Cursor: ["Pro", "Business", "Enterprise"],
+
+  Gemini: ["Pro", "Ultra"],
+
+  "GitHub Copilot": [
+    "Individual",
+    "Business",
+    "Enterprise",
+  ],
+};
+
 export default function Home() {
-  const [tool, setTool] = useLocalStorage("tool", "");
-  const [plan, setPlan] = useLocalStorage("plan", "");
-  const [spend, setSpend] = useLocalStorage("spend", "");
+  const [tool, setTool] = useLocalStorage(
+    "tool",
+    ""
+  );
+
+  const [plan, setPlan] = useLocalStorage(
+    "plan",
+    ""
+  );
+
+  const [spend, setSpend] =
+    useLocalStorage("spend", "");
+
   const [teamSize, setTeamSize] =
     useLocalStorage("teamSize", "");
+
   const [useCase, setUseCase] =
     useLocalStorage("useCase", "Coding");
 
@@ -29,48 +57,96 @@ export default function Home() {
     annualSavings: number;
   } | null>(null);
 
-  const generateAudit = () => {
+  const [audits, setAudits] = useState<
+    {
+      tool: string;
+      plan: string;
+      spend: number;
+      savings: number;
+    }[]
+  >([]);
+
+  const addToolAudit = () => {
     const spendAmount = Number(spend);
-    const size = Number(teamSize);
+
     const toolPricing =
-  pricingData[
-    tool as keyof typeof pricingData
-  ];
+      pricingData[
+        tool as keyof typeof pricingData
+      ];
 
-const estimatedCost =
-  toolPricing?.[
-    plan as keyof typeof toolPricing
-  ] || 0;
+    const estimatedCost =
+      toolPricing?.[
+        plan as keyof typeof toolPricing
+      ] || 0;
 
-const expectedSpend = estimatedCost * size;
+    const expectedSpend =
+      estimatedCost * Number(teamSize);
 
-    if (spendAmount > expectedSpend){
+    const savings = Math.max(
+      spendAmount - expectedSpend,
+      0
+    );
+
+    const newAudit = {
+      tool,
+      plan,
+      spend: spendAmount,
+      savings,
+    };
+
+    setAudits([...audits, newAudit]);
+  };
+
+  const generateAudit = async () => {
+    const spendAmount = Number(spend);
+
+    const size = Number(teamSize);
+
+    const toolPricing =
+      pricingData[
+        tool as keyof typeof pricingData
+      ];
+
+    const estimatedCost =
+      toolPricing?.[
+        plan as keyof typeof toolPricing
+      ] || 0;
+
+    const expectedSpend =
+      estimatedCost * size;
+
+    const monthlySavings = Math.max(
+      spendAmount - expectedSpend,
+      0
+    );
+
+    const annualSavings =
+      monthlySavings * 12;
+
+    const { error } = await supabase
+      .from("audits")
+      .insert([
+        {
+          tool,
+          plan,
+          spend: spendAmount,
+          team_size: size,
+          use_case: useCase,
+          monthly_savings:
+            monthlySavings,
+          annual_savings:
+            annualSavings,
+        },
+      ]);
+
+    console.log(error);
+
+    if (monthlySavings > 0) {
       setResult({
         message:
-          "Your team may be overspending on ChatGPT Team plans. Smaller teams can often reduce costs using Plus subscriptions.",
-        monthlySavings: spendAmount - expectedSpend,
-annualSavings:
-  (spendAmount - expectedSpend) * 12,
-      });
-    } else if (
-      tool === "Claude" &&
-      spendAmount > 100
-    ) {
-      setResult({
-        message:
-          "Claude usage appears expensive relative to your team size. Reviewing API usage could reduce costs.",
-        monthlySavings: 80,
-        annualSavings: 960,
-      });
-    } else if (
-      tool === "Cursor" &&
-      spendAmount > 150
-    ) {
-      setResult({
-        message:
-          "Your Cursor spend suggests potential over-allocation of premium seats.",
-        monthlySavings: 95,
-        annualSavings: 1140,
+          "Your team may be overspending on current AI subscriptions. Reviewing usage and plan selection could reduce costs significantly.",
+        monthlySavings,
+        annualSavings,
       });
     } else {
       setResult({
@@ -102,7 +178,9 @@ annualSavings:
             <select
               className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700"
               value={tool}
-              onChange={(e) => setTool(e.target.value)}
+              onChange={(e) =>
+                setTool(e.target.value)
+              }
             >
               <option value="">
                 Select Tool
@@ -121,15 +199,25 @@ annualSavings:
               Plan
             </label>
 
-            <input
-              type="text"
-              placeholder="Pro / Team / Enterprise"
+            <select
               className="w-full p-3 rounded-lg bg-zinc-800 border border-zinc-700"
               value={plan}
               onChange={(e) =>
                 setPlan(e.target.value)
               }
-            />
+            >
+              <option value="">
+                Select Plan
+              </option>
+
+              {toolPlans[tool]?.map(
+                (planName) => (
+                  <option key={planName}>
+                    {planName}
+                  </option>
+                )
+              )}
+            </select>
           </div>
 
           <div>
@@ -185,11 +273,51 @@ annualSavings:
           </div>
 
           <button
+            onClick={addToolAudit}
+            className="w-full bg-zinc-700 py-3 rounded-lg font-semibold hover:bg-zinc-600"
+          >
+            Add Tool to Audit
+          </button>
+
+          <button
             onClick={generateAudit}
             className="w-full bg-white text-black py-3 rounded-lg font-semibold hover:bg-gray-200"
           >
             Generate Audit
           </button>
+
+          {audits.length > 0 && (
+            <div className="space-y-4">
+              {audits.map((audit, index) => (
+                <div
+                  key={index}
+                  className="bg-zinc-800 border border-zinc-700 p-4 rounded-xl"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-xl font-semibold">
+                        {audit.tool}
+                      </h3>
+
+                      <p className="text-gray-400">
+                        {audit.plan} Plan
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-gray-400 text-sm">
+                        Potential Savings
+                      </p>
+
+                      <h3 className="text-2xl font-bold text-green-400">
+                        ${audit.savings}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {result && (
             <div className="bg-zinc-800 border border-zinc-700 p-6 rounded-xl mt-6">
@@ -229,14 +357,18 @@ annualSavings:
                 </p>
               </div>
 
-              {result.monthlySavings >= 100 && (
+              {result.monthlySavings >=
+                100 && (
                 <div className="bg-blue-900 border border-blue-700 p-4 rounded-lg mt-4">
                   <h3 className="font-semibold mb-2">
                     Save More with Credex
                   </h3>
 
                   <p className="text-gray-300 mb-3">
-                    Your team may qualify for discounted AI infrastructure credits through Credex.
+                    Your team may qualify
+                    for discounted AI
+                    infrastructure credits
+                    through Credex.
                   </p>
 
                   <button className="bg-white text-black px-4 py-2 rounded-lg font-medium">
